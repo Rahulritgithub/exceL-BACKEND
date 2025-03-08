@@ -9,7 +9,7 @@ import pandas as pd
 import re
 import io
 from io import BytesIO
-from pack.parser_script import parse_log_file, parse_log_file2, parse_log_file3  # ✅ Absolute import
+from app.parser_script import parse_log_file, parse_log_file2, parse_log_file3  # ✅ Absolute import
 
 import matplotlib.pyplot as plt
 import base64

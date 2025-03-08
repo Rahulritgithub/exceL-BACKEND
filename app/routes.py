@@ -2,12 +2,12 @@ from flask import request, jsonify
 import pandas as pd
 import tempfile
 import os
-from scripts.parser_script import parse_log_file, parse_log_file2, parse_log_file3
-from scripts.app import (
+from app.parser_script import parse_log_file, parse_log_file2, parse_log_file3
+from app.app import (
     clear_sheet, update_google_sheet, update_google_sheet1, get_existing_data,
     ensure_sheet_exists, upload_to_google_drive, update_chart_sheet,
     create_slt_tracker, create_yield_summary, create_yield_summary2,
-    create_yield_summary3, count_bank_nonbank_failures_ECO, count_bank_nonbank_failures_SPORT,generate_combined_pie_chart
+    create_yield_summary3, count_bank_nonbank_failures_ECO, count_bank_nonbank_failures_SPORT, generate_combined_pie_chart
 )
 
 def process_logs_logic(files):
