@@ -6,3 +6,7 @@ matplotlib
 gspread
 oauth2client
 gspread-dataframe
+google-api-python-client
+
+
+
