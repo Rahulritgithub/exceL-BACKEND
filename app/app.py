@@ -256,7 +256,7 @@ def count_bank_nonbank_failures_SPORT(Merge):
 
 
 
-def count_bank_nonbank_failures(Merge):
+'''def count_bank_nonbank_failures(Merge):
     # Extract unique failure categories from both columns, excluding N/A values
     unique_bank_failures = Merge["Bank Related Fails"].dropna().replace("N/A", None).dropna().unique()
     unique_nonbank_failures = Merge["Non-Bank Related Fails"].dropna().replace("N/A", None).dropna().unique()
@@ -289,29 +289,64 @@ def count_bank_nonbank_failures(Merge):
     # Append the Grand Total row
     summary.loc[len(summary.index)] = ["Grand Total", grand_total]
 
+    return summary'''
+
+
+def count_all_failures(merge):
+    # Count Bank Related Fails other than N/A or " " for ECO and SPORT separately
+    bank_eco = ((merge["Current Power Mode"] == "ECO") & merge["Bank Related Fails"].notna() & (merge["Bank Related Fails"] != " ")).sum()
+    bank_sport = ((merge["Current Power Mode"] == "SPORT") & merge["Bank Related Fails"].notna() & (merge["Bank Related Fails"] != " ")).sum()
+
+    # Count Adjacent Column Failures other than N/A or " " for ECO and SPORT separately
+    adjacent_eco = ((merge["Current Power Mode"] == "ECO") & merge["Adjacent"].notna() & (merge["Adjacent"] != " ")).sum()
+    adjacent_sport = ((merge["Current Power Mode"] == "SPORT") & merge["Adjacent"].notna() & (merge["Adjacent"] != " ")).sum()
+
+    # Count CMCM Functional Tests failures other than N/A, " ", "p" for ECO and SPORT separately
+    cmcm_eco = ((merge["Current Power Mode"] == "ECO") & merge["CMCM Functional Tests"].notna() & (merge["CMCM Functional Tests"] != " ") & (merge["CMCM Functional Tests"] != "p")).sum()
+    cmcm_sport = ((merge["Current Power Mode"] == "SPORT") & merge["CMCM Functional Tests"].notna() & (merge["CMCM Functional Tests"] != " ") & (merge["CMCM Functional Tests"] != "p")).sum()
+
+    # Count LPDDR Test failures other than N/A, " ", "p" for ECO and SPORT separately
+    lpddr_eco = ((merge["Current Power Mode"] == "ECO") & merge["LPDDR Test"].notna() & (merge["LPDDR Test"] != " ") & (merge["LPDDR Test"] != "p")).sum()
+    lpddr_sport = ((merge["Current Power Mode"] == "SPORT") & merge["LPDDR Test"].notna() & (merge["LPDDR Test"] != " ") & (merge["LPDDR Test"] != "p")).sum()
+
+    # Count Final Bin as passing when HB1 (ECO) or HB2 (SPORT)
+    final_bin_pass_eco = (merge["Final Bin"] == "HB1").sum()
+    final_bin_pass_sport = (merge["Final Bin"] == "HB2").sum()
+    
+    # Count Special Cases
+    special_case_eco = ((merge["Current Power Mode"] == "ECO") & (merge["Special Case"].notna())).sum()
+    special_case_sport = ((merge["Current Power Mode"] == "SPORT") & (merge["Special Case"].notna())).sum()
+    
+    # Total counts
+    total_eco = bank_eco + adjacent_eco + cmcm_eco + lpddr_eco + final_bin_pass_eco + special_case_eco
+    total_sport = bank_sport + adjacent_sport + cmcm_sport + lpddr_sport + final_bin_pass_sport + special_case_sport
+    
+    # Compute percentages
+    def calc_percentage(count, total):
+        return f"{(count / total * 100):.1f}%" if total > 0 else "0%"
+
+    summary = pd.DataFrame({
+        "Failure Modes": [
+            "Bank-related Fails",
+            "Adjacent Col Fails",
+            "CMCM Func Fails",
+            "LPDDR Fails",
+            "Passing",
+            "Special Case"
+        ],
+        "ECO": [bank_eco, adjacent_eco, cmcm_eco, lpddr_eco, final_bin_pass_eco, special_case_eco],
+        "SPORT": [bank_sport, adjacent_sport, cmcm_sport, lpddr_sport, final_bin_pass_sport, special_case_sport],
+        "ECO %": [calc_percentage(bank_eco, total_eco), calc_percentage(adjacent_eco, total_eco), calc_percentage(cmcm_eco, total_eco), calc_percentage(lpddr_eco, total_eco), calc_percentage(final_bin_pass_eco, total_eco), calc_percentage(special_case_eco, total_eco)],
+        "SPORT %": [calc_percentage(bank_sport, total_sport), calc_percentage(adjacent_sport, total_sport), calc_percentage(cmcm_sport, total_sport), calc_percentage(lpddr_sport, total_sport), calc_percentage(final_bin_pass_sport, total_sport), calc_percentage(special_case_sport, total_sport)]
+    })
+    
+    # Append total row
+    summary.loc[len(summary.index)] = ["Total", total_eco, total_sport, "", ""]
+    
     return summary
 
 
-
-
-    '''
-    additional_summary = {
-        "Category": [
-            "Failed (ECO)", "Failed (SPORT)", "HB1 (ECO)", "HB2 (SPORT)", 
-            "Special Case", "SC - no datalog", "Failed (ECO) --> SC (SPORT)", "Grand Total"
-        ],
-        "Count": [
-            (slt_tracker_df["Binning_ECO"] == "Failed(ECO)").sum(),
-            (slt_tracker_df["Binning_SPORT"] == "Failed(SPORT)").sum(),
-            (slt_tracker_df["Binning_ECO"] == "HB1(ECO)").sum(),
-            (slt_tracker_df["Binning_SPORT"] == "HB2(SPORT)").sum(),
-            (slt_tracker_df["Final Binning"] == "Special Case").sum(),
-            ((slt_tracker_df["Final Binning"] == "SC - no datalog").sum() if "SC - no datalog" in slt_tracker_df.columns else 0),
-            ((slt_tracker_df["Final Binning"] == "Failed (ECO) --> SC (SPORT)").sum() if "Failed (ECO) --> SC (SPORT)" in slt_tracker_df.columns else 0),
-            len(slt_tracker_df)
-        ]
-    }
-    yield_summary_df = pd.DataFrame(additional_summary)'''
+    
 
         
 
@@ -453,8 +488,11 @@ def process_logs():
             yield_df5 = count_bank_nonbank_failures_SPORT(combined_merge_data)
             update_google_sheet1("Yield",yield_df5)
 
-            yield_df6 = count_bank_nonbank_failures(combined_merge_data)
-            update_google_sheet1("Yield",yield_df6)
+            #yield_df6 = count_bank_nonbank_failures(combined_merge_data)
+            #update_google_sheet1("Yield",yield_df6)
+
+            yield_df7 = count_all_failures(combined_merge_data)
+            update_google_sheet1("Yield",yield_df7)
 
 
          
