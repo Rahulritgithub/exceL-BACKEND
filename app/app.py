@@ -594,7 +594,7 @@ def fetch_merge_sheet_data():
         return pd.DataFrame()  # Return empty DataFrame in case of failure
     
 def generate_yield_bar_chart(yield_df4, yield_df5):
-    """Generates a bar chart comparing ECO and SPORT mode failures."""
+    """Generates a bar chart comparing ECO and SPORT mode failures and returns base64-encoded image."""
     try:
         fig, ax = plt.subplots(figsize=(8, 5))
 
@@ -614,15 +614,19 @@ def generate_yield_bar_chart(yield_df4, yield_df5):
         ax.legend()
 
         plt.tight_layout()
-        plt.savefig("yield_bar_chart.png")
-        plt.close()
 
-        return "yield_bar_chart.png"
+        # ✅ Convert chart to base64 image
+        img = io.BytesIO()
+        plt.savefig(img, format='png')
+        img.seek(0)
+        img_base64 = base64.b64encode(img.getvalue()).decode('utf-8')
+
+        plt.close()
+        return img_base64  # ✅ Return base64-encoded image
     
     except Exception as e:
         print(f"❌ Error generating bar chart: {e}")
         return None
-
 
 
 
