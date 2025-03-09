@@ -314,12 +314,12 @@ def count_all_failures(Merge):
     final_bin_pass_sport = (Merge["Final Bin"] == "HB2").sum()
     
     # Count Special Cases
-    special_case_eco = ((Merge["Current Power Mode"] == "ECO") & (Merge["Special Case"].notna())).sum()
-    special_case_sport = ((Merge["Current Power Mode"] == "SPORT") & (Merge["Special Case"].notna())).sum()
+    #special_case_eco = ((Merge["Current Power Mode"] == "ECO") & (Merge["Special Case"].notna())).sum()
+    #special_case_sport = ((Merge["Current Power Mode"] == "SPORT") & (Merge["Special Case"].notna())).sum()
     
     # Total counts
-    total_eco = bank_eco + adjacent_eco + cmcm_eco + lpddr_eco + final_bin_pass_eco + special_case_eco
-    total_sport = bank_sport + adjacent_sport + cmcm_sport + lpddr_sport + final_bin_pass_sport + special_case_sport
+    total_eco = bank_eco + adjacent_eco + cmcm_eco + lpddr_eco + final_bin_pass_eco 
+    total_sport = bank_sport + adjacent_sport + cmcm_sport + lpddr_sport + final_bin_pass_sport 
     
     # Compute percentages
     def calc_percentage(count, total):
@@ -331,13 +331,12 @@ def count_all_failures(Merge):
             "Adjacent Col Fails",
             "CMCM Func Fails",
             "LPDDR Fails",
-            "Passing",
-            "Special Case"
+            "Passing"
         ],
-        "ECO": [bank_eco, adjacent_eco, cmcm_eco, lpddr_eco, final_bin_pass_eco, special_case_eco],
-        "SPORT": [bank_sport, adjacent_sport, cmcm_sport, lpddr_sport, final_bin_pass_sport, special_case_sport],
-        "ECO %": [calc_percentage(bank_eco, total_eco), calc_percentage(adjacent_eco, total_eco), calc_percentage(cmcm_eco, total_eco), calc_percentage(lpddr_eco, total_eco), calc_percentage(final_bin_pass_eco, total_eco), calc_percentage(special_case_eco, total_eco)],
-        "SPORT %": [calc_percentage(bank_sport, total_sport), calc_percentage(adjacent_sport, total_sport), calc_percentage(cmcm_sport, total_sport), calc_percentage(lpddr_sport, total_sport), calc_percentage(final_bin_pass_sport, total_sport), calc_percentage(special_case_sport, total_sport)]
+        "ECO": [bank_eco, adjacent_eco, cmcm_eco, lpddr_eco, final_bin_pass_eco],
+        "SPORT": [bank_sport, adjacent_sport, cmcm_sport, lpddr_sport, final_bin_pass_sport],
+        "ECO %": [calc_percentage(bank_eco, total_eco), calc_percentage(adjacent_eco, total_eco), calc_percentage(cmcm_eco, total_eco), calc_percentage(lpddr_eco, total_eco), calc_percentage(final_bin_pass_eco, total_eco)],
+        "SPORT %": [calc_percentage(bank_sport, total_sport), calc_percentage(adjacent_sport, total_sport), calc_percentage(cmcm_sport, total_sport), calc_percentage(lpddr_sport, total_sport), calc_percentage(final_bin_pass_sport, total_sport)]
     })
     
     # Append total row
