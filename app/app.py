@@ -454,7 +454,7 @@ def process_logs():
             update_google_sheet1("Yield",yield_df5)
 
             yield_df6 = count_bank_nonbank_failures(combined_merge_data)
-            update_google_sheet1("yield",yield_df6)
+            update_google_sheet1("Yield",yield_df6)
 
 
          
