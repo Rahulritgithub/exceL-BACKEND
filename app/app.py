@@ -504,8 +504,11 @@ def process_logs():
             eco_chart = generate_combined_pie_chart(combined_merge_data[combined_merge_data['Current Power Mode'] == 'ECO'], "ECO Mode - Combined Test Results", test_columns)
             sport_chart = generate_combined_pie_chart(combined_merge_data[combined_merge_data['Current Power Mode'] == 'SPORT'], "SPORT Mode - Combined Test Results", test_columns)
 
-            # Update "Chart" sheet with pie chart URLs
-            update_chart_sheet(eco_chart, sport_chart)
+            bar_chart = generate_yield_bar_chart(yield_df4, yield_df5)
+
+            update_chart_sheet(eco_chart, sport_chart, bar_chart)
+
+
 
         return jsonify({"message": "Google Sheets updated successfully"}), 200
     except Exception as e:
@@ -589,6 +592,36 @@ def fetch_merge_sheet_data():
     except Exception as e:
         print(f"❌ Error fetching Merge sheet data: {e}")
         return pd.DataFrame()  # Return empty DataFrame in case of failure
+    
+def generate_yield_bar_chart(yield_df4, yield_df5):
+    """Generates a bar chart comparing ECO and SPORT mode failures."""
+    try:
+        fig, ax = plt.subplots(figsize=(8, 5))
+
+        categories = yield_df4["Failure Modes"]
+        eco_values = yield_df4["ECO"]
+        sport_values = yield_df5["SPORT"]
+
+        x = range(len(categories))
+
+        ax.bar(x, eco_values, width=0.4, label="ECO", align="center")
+        ax.bar(x, sport_values, width=0.4, label="SPORT", align="edge")
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(categories, rotation=45, ha="right")
+        ax.set_ylabel("Failure Count")
+        ax.set_title("Comparison of ECO & SPORT Failures")
+        ax.legend()
+
+        plt.tight_layout()
+        plt.savefig("yield_bar_chart.png")
+        plt.close()
+
+        return "yield_bar_chart.png"
+    
+    except Exception as e:
+        print(f"❌ Error generating bar chart: {e}")
+        return None
 
 
 
@@ -650,8 +683,8 @@ def generate_combined_pie_chart(df, title, test_columns):
 
 
 
-def update_chart_sheet(eco_chart, sport_chart):
-    """Updates the 'Chart' sheet with pie chart URLs for ECO and SPORT modes."""
+def update_chart_sheet(eco_chart, sport_chart, bar_chart):
+    """Updates the 'Chart' sheet with pie chart URLs for ECO and SPORT modes along with the bar chart."""
     try:
         # ✅ Open the Google Sheet & Fetch Chart sheet
         sheet = client.open("UAI").worksheet("Chart")
@@ -660,7 +693,7 @@ def update_chart_sheet(eco_chart, sport_chart):
         sheet.clear()
 
         # ✅ Add headers
-        sheet.update([["ECO Mode Chart", "SPORT Mode Chart"]])
+        sheet.update([["ECO Mode Chart", "SPORT Mode Chart", "Yield Bar Chart"]])
 
         # ✅ Upload pie charts to Google Drive and get URLs
         if eco_chart:
@@ -670,6 +703,10 @@ def update_chart_sheet(eco_chart, sport_chart):
         if sport_chart:
             sport_url = upload_to_google_drive(sport_chart, "sport_chart.png")
             sheet.update_cell(2, 2, sport_url)  # ✅ Insert SPORT chart URL
+
+        if bar_chart:
+            bar_url = upload_to_google_drive(bar_chart, "yield_bar_chart.png")
+            sheet.update_cell(2, 3, bar_url)  # ✅ Insert Bar Chart URL
 
         print("✅ Chart sheet updated successfully.")
 
