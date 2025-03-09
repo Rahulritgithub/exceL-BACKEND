@@ -292,30 +292,30 @@ def count_bank_nonbank_failures_SPORT(Merge):
     return summary'''
 
 
-def count_all_failures(merge):
+def count_all_failures(Merge):
     # Count Bank Related Fails other than N/A or " " for ECO and SPORT separately
-    bank_eco = ((merge["Current Power Mode"] == "ECO") & merge["Bank Related Fails"].notna() & (merge["Bank Related Fails"] != " ")).sum()
-    bank_sport = ((merge["Current Power Mode"] == "SPORT") & merge["Bank Related Fails"].notna() & (merge["Bank Related Fails"] != " ")).sum()
+    bank_eco = ((Merge["Current Power Mode"] == "ECO") & Merge["Bank Related Fails"].notna() & (Merge["Bank Related Fails"] != " ")).sum()
+    bank_sport = ((Merge["Current Power Mode"] == "SPORT") & Merge["Bank Related Fails"].notna() & (Merge["Bank Related Fails"] != " ")).sum()
 
     # Count Adjacent Column Failures other than N/A or " " for ECO and SPORT separately
-    adjacent_eco = ((merge["Current Power Mode"] == "ECO") & merge["Adjacent"].notna() & (merge["Adjacent"] != " ")).sum()
-    adjacent_sport = ((merge["Current Power Mode"] == "SPORT") & merge["Adjacent"].notna() & (merge["Adjacent"] != " ")).sum()
+    adjacent_eco = ((Merge["Current Power Mode"] == "ECO") & Merge["Adjacent"].notna() & (Merge["Adjacent"] != " ")).sum()
+    adjacent_sport = ((Merge["Current Power Mode"] == "SPORT") & Merge["Adjacent"].notna() & (Merge["Adjacent"] != " ")).sum()
 
     # Count CMCM Functional Tests failures other than N/A, " ", "p" for ECO and SPORT separately
-    cmcm_eco = ((merge["Current Power Mode"] == "ECO") & merge["CMCM Functional Tests"].notna() & (merge["CMCM Functional Tests"] != " ") & (merge["CMCM Functional Tests"] != "p")).sum()
-    cmcm_sport = ((merge["Current Power Mode"] == "SPORT") & merge["CMCM Functional Tests"].notna() & (merge["CMCM Functional Tests"] != " ") & (merge["CMCM Functional Tests"] != "p")).sum()
+    cmcm_eco = ((Merge["Current Power Mode"] == "ECO") & Merge["CMCM Functional Tests"].notna() & (Merge["CMCM Functional Tests"] != " ") & (Merge["CMCM Functional Tests"] != "p")).sum()
+    cmcm_sport = ((Merge["Current Power Mode"] == "SPORT") & Merge["CMCM Functional Tests"].notna() & (Merge["CMCM Functional Tests"] != " ") & (Merge["CMCM Functional Tests"] != "p")).sum()
 
     # Count LPDDR Test failures other than N/A, " ", "p" for ECO and SPORT separately
-    lpddr_eco = ((merge["Current Power Mode"] == "ECO") & merge["LPDDR Test"].notna() & (merge["LPDDR Test"] != " ") & (merge["LPDDR Test"] != "p")).sum()
-    lpddr_sport = ((merge["Current Power Mode"] == "SPORT") & merge["LPDDR Test"].notna() & (merge["LPDDR Test"] != " ") & (merge["LPDDR Test"] != "p")).sum()
+    lpddr_eco = ((Merge["Current Power Mode"] == "ECO") & Merge["LPDDR Test"].notna() & (Merge["LPDDR Test"] != " ") & (Merge["LPDDR Test"] != "p")).sum()
+    lpddr_sport = ((Merge["Current Power Mode"] == "SPORT") & Merge["LPDDR Test"].notna() & (Merge["LPDDR Test"] != " ") & (Merge["LPDDR Test"] != "p")).sum()
 
     # Count Final Bin as passing when HB1 (ECO) or HB2 (SPORT)
-    final_bin_pass_eco = (merge["Final Bin"] == "HB1").sum()
-    final_bin_pass_sport = (merge["Final Bin"] == "HB2").sum()
+    final_bin_pass_eco = (Merge["Final Bin"] == "HB1").sum()
+    final_bin_pass_sport = (Merge["Final Bin"] == "HB2").sum()
     
     # Count Special Cases
-    special_case_eco = ((merge["Current Power Mode"] == "ECO") & (merge["Special Case"].notna())).sum()
-    special_case_sport = ((merge["Current Power Mode"] == "SPORT") & (merge["Special Case"].notna())).sum()
+    special_case_eco = ((Merge["Current Power Mode"] == "ECO") & (Merge["Special Case"].notna())).sum()
+    special_case_sport = ((Merge["Current Power Mode"] == "SPORT") & (Merge["Special Case"].notna())).sum()
     
     # Total counts
     total_eco = bank_eco + adjacent_eco + cmcm_eco + lpddr_eco + final_bin_pass_eco + special_case_eco
@@ -344,6 +344,7 @@ def count_all_failures(merge):
     summary.loc[len(summary.index)] = ["Total", total_eco, total_sport, "", ""]
     
     return summary
+
 
 
     
