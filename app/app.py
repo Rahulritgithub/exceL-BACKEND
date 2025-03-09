@@ -593,53 +593,40 @@ def fetch_merge_sheet_data():
         print(f"❌ Error fetching Merge sheet data: {e}")
         return pd.DataFrame()  # Return empty DataFrame in case of failure
     
-def generate_yield_bar_chart(df4, df5, title="Failure Mode Comparison"):
-    """
-    Generates a bar chart comparing failure counts from two dataframes.
+def generate_yield_bar_chart(yield_df4, yield_df5):
+    # Ensure DataFrames have the correct columns
+    yield_df4 = yield_df4.rename(columns={yield_df4.columns[0]: "Failure Modes", yield_df4.columns[1]: "Count"})
+    yield_df5 = yield_df5.rename(columns={yield_df5.columns[0]: "Failure Modes", yield_df5.columns[1]: "Count"})
 
-    Args:
-        df4 (pd.DataFrame): Data for Failure_ECO.
-        df5 (pd.DataFrame): Data for Failure_SPORT.
-        title (str): Title for the bar chart.
+    # Assign categories
+    yield_df4["Category"] = "failure_ECO"
+    yield_df5["Category"] = "Failure_SPORT"
 
-    Returns:
-        str: Base64 encoded image of the chart.
-    """
+    # Combine both DataFrames
+    combined_df = pd.concat([yield_df4, yield_df5], ignore_index=True)
 
-    # Merge dataframes on "Failure Modes" to align them correctly
-    merged_df = pd.merge(df4, df5, on="Failure Modes", how="outer", suffixes=("_ECO", "_SPORT")).fillna(0)
+    # Pivot for grouped bar chart
+    pivot_df = combined_df.pivot(index="Failure Modes", columns="Category", values="Count").fillna(0)
 
-    # Extract values
-    x_labels = merged_df["Failure Modes"]
-    failure_eco = merged_df["Count_ECO"]
-    failure_sport = merged_df["Count_SPORT"]
+    # Plot grouped bar chart
+    pivot_df.plot(kind="bar", figsize=(8, 5), color=["blue", "red"], alpha=0.7)
 
-    # Define bar width
-    bar_width = 0.4
-    x = range(len(x_labels))  # X-axis positions
-
-    # Create the bar chart
-    plt.figure(figsize=(7, 5))
-    plt.bar(x, failure_eco, width=bar_width, label="Failure_ECO", color='b')
-    plt.bar([i + bar_width for i in x], failure_sport, width=bar_width, label="Failure_SPORT", color='r')
-
-    # Labels and Titles
-    plt.xlabel("Failure Modes", fontsize=10)
-    plt.ylabel("Count", fontsize=10)
-    plt.title(title, fontsize=12)
-    plt.xticks([i + bar_width / 2 for i in x], [label if len(label) <= 15 else label[:10] + '...' for label in x_labels], rotation=30, ha="right")
-    plt.legend()
+    # Formatting
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel("Failure Modes")
+    plt.ylabel("Count")
+    plt.title("Failure Mode Counts (ECO vs SPORT)")
+    plt.legend(title="Category")
     plt.grid(axis="y", linestyle="--", alpha=0.7)
 
-    # Convert chart to base64 image
+    # Convert to Base64 for display
     img = io.BytesIO()
-    plt.savefig(img, format='png')
+    plt.savefig(img, format='png', bbox_inches="tight")
     img.seek(0)
     img_base64 = base64.b64encode(img.getvalue()).decode('utf-8')
     plt.close()
-    
-    return img_base64
 
+    return img_base64
 
 
 def extract_numeric(value):
