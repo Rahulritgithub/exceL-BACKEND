@@ -201,7 +201,7 @@ def count_bank_nonbank_failures_ECO(Merge):
     conditions.update(adjacent_conditions)
 
     # Convert dictionary to DataFrame
-    summary = pd.DataFrame(list(conditions.items()), columns=["Category", "Count"])
+    summary = pd.DataFrame(list(conditions.items()), columns=["failure_ECO", "Count"])
 
     # Filter out zero-count entries
     summary = summary[summary["Count"] > 0].reset_index(drop=True)
@@ -241,7 +241,7 @@ def count_bank_nonbank_failures_SPORT(Merge):
     conditions.update(adjacent_conditions)
 
     # Convert dictionary to DataFrame
-    summary = pd.DataFrame(list(conditions.items()), columns=["Category", "Count"])
+    summary = pd.DataFrame(list(conditions.items()), columns=["Failure_SPORT", "Count"])
 
     # Filter out zero-count entries
     summary = summary[summary["Count"] > 0].reset_index(drop=True)
@@ -255,6 +255,41 @@ def count_bank_nonbank_failures_SPORT(Merge):
     return summary
 
 
+
+def count_bank_nonbank_failures(Merge):
+    # Extract unique failure categories from both columns, excluding N/A values
+    unique_bank_failures = Merge["Bank Related Fails"].dropna().replace("N/A", None).dropna().unique()
+    unique_nonbank_failures = Merge["Non-Bank Related Fails"].dropna().replace("N/A", None).dropna().unique()
+    
+    # Initialize dictionary for counts
+    conditions = {failure: 0 for failure in unique_bank_failures}
+    conditions.update({failure: 0 for failure in unique_nonbank_failures})
+
+    # Count failures across all modes
+    for key in conditions.keys():
+        conditions[key] += ((Merge["Bank Related Fails"] == key) | (Merge["Non-Bank Related Fails"] == key)).sum()
+    
+    # Count adjacent failures
+    adjacent_conditions = {key + " (Adjacent)": 0 for key in conditions.keys()}
+    for key in conditions.keys():
+        adjacent_conditions[key + " (Adjacent)"] += (((Merge["Bank Related Fails"] == key) | (Merge["Non-Bank Related Fails"] == key)) & (Merge["Adjacent"] == "Yes")).sum()
+    
+    # Merge counts
+    conditions.update(adjacent_conditions)
+
+    # Convert dictionary to DataFrame
+    summary = pd.DataFrame(list(conditions.items()), columns=["Category", "Count"])
+
+    # Filter out zero-count entries
+    summary = summary[summary["Count"] > 0].reset_index(drop=True)
+
+    # Compute grand total
+    grand_total = summary["Count"].sum()
+
+    # Append the Grand Total row
+    summary.loc[len(summary.index)] = ["Grand Total", grand_total]
+
+    return summary
 
 
 
@@ -417,6 +452,9 @@ def process_logs():
 
             yield_df5 = count_bank_nonbank_failures_SPORT(combined_merge_data)
             update_google_sheet1("Yield",yield_df5)
+
+            yield_df6 = count_bank_nonbank_failures(combined_merge_data)
+            update_google_sheet1("yield",yield_df6)
 
 
          

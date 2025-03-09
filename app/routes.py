@@ -7,7 +7,8 @@ from app.app import (
     clear_sheet, update_google_sheet, update_google_sheet1, get_existing_data,
     ensure_sheet_exists, upload_to_google_drive, update_chart_sheet,
     create_slt_tracker, create_yield_summary, create_yield_summary2,
-    create_yield_summary3, count_bank_nonbank_failures_ECO, count_bank_nonbank_failures_SPORT, generate_combined_pie_chart
+    create_yield_summary3, count_bank_nonbank_failures_ECO, count_bank_nonbank_failures_SPORT, generate_combined_pie_chart, 
+    count_bank_nonbank_failures
 )
 
 def process_logs_logic(files):
@@ -81,6 +82,9 @@ def process_logs_logic(files):
 
             yield_df5 = count_bank_nonbank_failures_SPORT(combined_merge_data)
             update_google_sheet1("Yield", yield_df5)
+
+            yield_df6 =  count_bank_nonbank_failures(combined_merge_data)
+            update_google_sheet1("Yield", yield_df6)
 
             test_columns = ['Noc PassThrough', 'Noc Route', 'Bank Cram Test', 'CMCM Functional Tests', 'UCM_ALL', 'LPDDR Test', 'Failed Banks']
             eco_chart = generate_combined_pie_chart(combined_merge_data[combined_merge_data['Current Power Mode'] == 'ECO'], "ECO Mode - Combined Test Results", test_columns)
