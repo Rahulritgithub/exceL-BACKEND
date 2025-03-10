@@ -1,8 +1,13 @@
 from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Example: 16 MB limit
 import pandas as pd
 import tempfile
 import os
 from app.parser_script import parse_log_file, parse_log_file2, parse_log_file3
+import paramiko
+import logging
 
 
 from app.app import (
@@ -10,38 +15,47 @@ from app.app import (
     ensure_sheet_exists, update_chart_sheet,
     create_slt_tracker, create_yield_summary, create_yield_summary2,
     create_yield_summary3, count_bank_nonbank_failures_ECO, count_bank_nonbank_failures_SPORT, generate_combined_pie_chart, 
-    count_all_failures
+    count_all_failures, generate_yield_bar_chart
 )
 
 
 
 
 def process_logs_logic(files):
-    if not files:
-        return {"error": "No files uploaded"}, 400
-
-    sheet_data = {"Format 1": [], "Format 2": [], "Merge": []}
-
-    for file in files:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_file_path = os.path.join(temp_dir, file.filename)
-            file.save(temp_file_path)
-
-            try:
-                df1 = parse_log_file(temp_file_path)
-                df2 = parse_log_file2(temp_file_path)
-                df3 = parse_log_file3(temp_file_path)
-
-                if df1 is not None and not df1.empty:
-                    sheet_data["Format 1"].append(df1)
-                if df2 is not None and not df2.empty:
-                    sheet_data["Format 2"].append(df2)
-                if df3 is not None and not df3.empty:
-                    sheet_data["Merge"].append(df3)
-            except Exception as e:
-                return {"error": f"Error processing file {file.filename}: {str(e)}"}, 500
-
     try:
+        logging.debug("Starting /process_logs route")
+        files = request.files.getlist('files')
+        logging.debug(f"Number of files received: {len(files)}")
+
+        if not files:
+            logging.error("No files uploaded")
+            return {"error": "No files uploaded"}, 400
+
+        sheet_data = {"Format 1": [], "Format 2": [], "Merge": []}
+
+        # Process uploaded files
+        for file in files:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_file_path = os.path.join(temp_dir, file.filename)
+                file.save(temp_file_path)
+                logging.debug(f"Processing file: {file.filename}")
+                
+                try:
+                    df1 = parse_log_file(temp_file_path)  # Parse for Format 1
+                    df2 = parse_log_file2(temp_file_path)  # Parse for Format 2
+                    df3 = parse_log_file3(temp_file_path)  # Parse for Merge
+
+                    if df1 is not None and not df1.empty:
+                        sheet_data["Format 1"].append(df1)
+                    if df2 is not None and not df2.empty:
+                        sheet_data["Format 2"].append(df2)
+                    if df3 is not None and not df3.empty:
+                        sheet_data["Merge"].append(df3)
+                except Exception as e:
+                    logging.error(f"Error processing file {file.filename}: {str(e)}")
+                    return {"error": f"Error processing file {file.filename}: {str(e)}"}, 500
+
+        # Ensure sheets exist
         ensure_sheet_exists("Format 1")
         ensure_sheet_exists("Format 2")
         ensure_sheet_exists("Merge")
@@ -49,6 +63,7 @@ def process_logs_logic(files):
         ensure_sheet_exists("Yield")
         ensure_sheet_exists("Chart")
 
+        # Update "Format 1" and "Format 2" sheets
         if sheet_data["Format 1"]:
             existing_format1_data = get_existing_data("Format 1")
             new_format1_data = pd.concat(sheet_data["Format 1"], ignore_index=True)
@@ -61,15 +76,18 @@ def process_logs_logic(files):
             combined_format2_data = pd.concat([existing_format2_data, new_format2_data], ignore_index=True)
             update_google_sheet("Format 2", combined_format2_data)
 
+        # Reset "SLT Tracker" and "Yield" sheets
         clear_sheet("SLT Tracker")
         clear_sheet("Yield")
 
+        # Update "Merge" sheet
         if sheet_data["Merge"]:
             existing_merge_data = get_existing_data("Merge")
             new_merge_data = pd.concat(sheet_data["Merge"], ignore_index=True)
             combined_merge_data = pd.concat([existing_merge_data, new_merge_data], ignore_index=True)
             update_google_sheet("Merge", combined_merge_data)
 
+            # Update "SLT Tracker" and "Yield" sheets
             slt_tracker_df = create_slt_tracker(combined_merge_data)
             update_google_sheet("SLT Tracker", slt_tracker_df)
 
@@ -88,22 +106,25 @@ def process_logs_logic(files):
             yield_df5 = count_bank_nonbank_failures_SPORT(combined_merge_data)
             update_google_sheet1("Yield", yield_df5)
 
-           # yield_df6 =  count_bank_nonbank_failures(combined_merge_data)
-            #update_google_sheet1("Yield", yield_df6)
-
             yield_df7 = count_all_failures(combined_merge_data)
-            update_google_sheet1("Yield",yield_df7)
+            update_google_sheet1("Yield", yield_df7)
 
+            # Generate pie charts for ECO and SPORT modes
             test_columns = ['Noc PassThrough', 'Noc Route', 'Bank Cram Test', 'CMCM Functional Tests', 'UCM_ALL', 'LPDDR Test', 'Failed Banks']
             eco_chart = generate_combined_pie_chart(combined_merge_data[combined_merge_data['Current Power Mode'] == 'ECO'], "ECO Mode - Combined Test Results", test_columns)
             sport_chart = generate_combined_pie_chart(combined_merge_data[combined_merge_data['Current Power Mode'] == 'SPORT'], "SPORT Mode - Combined Test Results", test_columns)
 
-            update_chart_sheet(eco_chart, sport_chart)
+            bar_chart = generate_yield_bar_chart(yield_df4, yield_df5)
+
+            update_chart_sheet(eco_chart, sport_chart, bar_chart)
 
         return jsonify({"message": "Google Sheets updated successfully"}), 200
     except Exception as e:
-        print(f"Error updating Google Sheets: {str(e)}")
-        return {"error": f"Error updating Google Sheets: {str(e)}"}, 500
+        logging.error(f"Error in /process_logs: {str(e)}", exc_info=True)
+        return {"error": f"Internal Server Error: {str(e)}"}, 500
+    
+
+
 
 def get_piechart_logic(files):
     if not files:

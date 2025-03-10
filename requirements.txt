@@ -9,5 +9,6 @@ gspread-dataframe
 google-api-python-client
 python-dotenv
 paramiko
-
+logging
+werkzeug
 

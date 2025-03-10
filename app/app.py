@@ -8,8 +8,11 @@ from flask_cors import CORS
 import pandas as pd
 import re
 import io
+import logging
+import paramiko
 from io import BytesIO
 from app.parser_script import parse_log_file, parse_log_file2, parse_log_file3  # ✅ Absolute import
+from werkzeug.utils import secure_filename
 
 import matplotlib.pyplot as plt
 import base64
@@ -42,10 +45,32 @@ service = build("sheets", "v4", credentials=credentials)
 drive_service = build("drive", "v3", credentials=credentials)
 
 
-
-
 app = Flask(__name__)
+logging.basicConfig(level=logging.DEBUG)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 CORS(app)
+
+
+UPLOAD_FOLDER = "uploads"  # Ensure this folder exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# ✅ Read SFTP config from environment variable
+sftp_config_base64 = os.getenv("SFTP_CONFIG_BASE64")
+
+if not sftp_config_base64:
+    raise ValueError("❌ SFTP_CONFIG_BASE64 is empty or not set!")
+
+try:
+    decoded_bytes = base64.b64decode(sftp_config_base64)
+    decoded_str = decoded_bytes.decode("utf-8").strip()  # Trim extra spaces/newlines
+    SFTP_CONFIG = json.loads(decoded_str)  # Convert JSON string to Python dictionary
+except json.JSONDecodeError as e:
+    raise ValueError(f"❌ Error decoding SFTP_CONFIG_BASE64: {str(e)}")
+
+
+
+
+
 
 def create_slt_tracker(merge_df):
     print("Columns in Merge Sheet:", merge_df.columns.tolist())
@@ -394,11 +419,6 @@ def update_google_sheet1(sheet_name, data):
 
 
 
-
-    
-
-
-
 # Helper function to get existing data from a sheet
 def get_existing_data(sheet_name):
     sheet = client.open("UAI").worksheet(sheet_name)
@@ -411,34 +431,38 @@ def get_existing_data(sheet_name):
 
 @app.route('/process_logs', methods=['POST'])
 def process_logs():
-    files = request.files.getlist('files')
-
-    if not files:
-        return {"error": "No files uploaded"}, 400
-
-    sheet_data = {"Format 1": [], "Format 2": [], "Merge": []}
-
-    # Process uploaded files
-    for file in files:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_file_path = os.path.join(temp_dir, file.filename)
-            file.save(temp_file_path)
-
-            try:
-                df1 = parse_log_file(temp_file_path)  # Parse for Format 1
-                df2 = parse_log_file2(temp_file_path)  # Parse for Format 2
-                df3 = parse_log_file3(temp_file_path)  # Parse for Merge
-
-                if df1 is not None and not df1.empty:
-                    sheet_data["Format 1"].append(df1)
-                if df2 is not None and not df2.empty:
-                    sheet_data["Format 2"].append(df2)
-                if df3 is not None and not df3.empty:
-                    sheet_data["Merge"].append(df3)
-            except Exception as e:
-                return {"error": f"Error processing file {file.filename}: {str(e)}"}, 500
-
     try:
+        logging.debug("Starting /process_logs route")
+        files = request.files.getlist('files')
+        logging.debug(f"Number of files received: {len(files)}")
+
+        if not files:
+            return {"error": "No files uploaded"}, 400
+
+        sheet_data = {"Format 1": [], "Format 2": [], "Merge": []}
+
+        # Process uploaded files
+        for file in files:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_file_path = os.path.join(temp_dir, file.filename)
+                file.save(temp_file_path)
+                logging.debug(f"Saved file to temporary path: {temp_file_path}")
+
+                try:
+                    df1 = parse_log_file(temp_file_path)  # Parse for Format 1
+                    df2 = parse_log_file2(temp_file_path)  # Parse for Format 2
+                    df3 = parse_log_file3(temp_file_path)  # Parse for Merge
+
+                    if df1 is not None and not df1.empty:
+                        sheet_data["Format 1"].append(df1)
+                    if df2 is not None and not df2.empty:
+                        sheet_data["Format 2"].append(df2)
+                    if df3 is not None and not df3.empty:
+                        sheet_data["Merge"].append(df3)
+                except Exception as e:
+                    logging.error(f"Error processing file {file.filename}: {str(e)}", exc_info=True)
+                    return {"error": f"Error processing file {file.filename}: {str(e)}"}, 500
+
         # Ensure sheets exist
         ensure_sheet_exists("Format 1")
         ensure_sheet_exists("Format 2")
@@ -447,7 +471,7 @@ def process_logs():
         ensure_sheet_exists("Yield")
         ensure_sheet_exists("Chart")
 
-        # Update "Format 1" and "Format 2" sheets (existing logic)
+        # Update "Format 1" and "Format 2" sheets
         if sheet_data["Format 1"]:
             existing_format1_data = get_existing_data("Format 1")
             new_format1_data = pd.concat(sheet_data["Format 1"], ignore_index=True)
@@ -460,7 +484,7 @@ def process_logs():
             combined_format2_data = pd.concat([existing_format2_data, new_format2_data], ignore_index=True)
             update_google_sheet("Format 2", combined_format2_data)
 
-        # Reset "SLT Tracker" and "Yield" sheets (existing logic)
+        # Reset "SLT Tracker" and "Yield" sheets
         clear_sheet("SLT Tracker")
         clear_sheet("Yield")
 
@@ -471,13 +495,12 @@ def process_logs():
             combined_merge_data = pd.concat([existing_merge_data, new_merge_data], ignore_index=True)
             update_google_sheet("Merge", combined_merge_data)
 
-            # Update "SLT Tracker" and "Yield" sheets (existing logic)
+            # Update "SLT Tracker" and "Yield" sheets
             slt_tracker_df = create_slt_tracker(combined_merge_data)
             update_google_sheet("SLT Tracker", slt_tracker_df)
 
             yield_df = create_yield_summary(slt_tracker_df)
             update_google_sheet1("Yield", yield_df)
-            #update_google_sheet("Yield", yield_df1)
 
             yield_df2 = create_yield_summary2(slt_tracker_df)
             update_google_sheet1("Yield", yield_df2)
@@ -489,18 +512,10 @@ def process_logs():
             update_google_sheet1("Yield", yield_df4)
 
             yield_df5 = count_bank_nonbank_failures_SPORT(combined_merge_data)
-            update_google_sheet1("Yield",yield_df5)
-
-            #yield_df6 = count_bank_nonbank_failures(combined_merge_data)
-            #update_google_sheet1("Yield",yield_df6)
+            update_google_sheet1("Yield", yield_df5)
 
             yield_df7 = count_all_failures(combined_merge_data)
-            update_google_sheet1("Yield",yield_df7)
-
-
-         
-
-            
+            update_google_sheet1("Yield", yield_df7)
 
             # Generate pie charts for ECO and SPORT modes
             test_columns = ['Noc PassThrough', 'Noc Route', 'Bank Cram Test', 'CMCM Functional Tests', 'UCM_ALL', 'LPDDR Test', 'Failed Banks']
@@ -511,12 +526,10 @@ def process_logs():
 
             update_chart_sheet(eco_chart, sport_chart, bar_chart)
 
-
-
         return jsonify({"message": "Google Sheets updated successfully"}), 200
     except Exception as e:
-        print(f"Error updating Google Sheets: {str(e)}")
-        return {"error": f"Error updating Google Sheets: {str(e)}"}, 500
+        logging.error(f"Error in /process_logs: {str(e)}", exc_info=True)
+        return {"error": f"Internal Server Error: {str(e)}"}, 500
 
 def ensure_sheet_exists(sheet_name):
     """Ensure that the specified sheet exists in the Google Sheets document."""
@@ -768,6 +781,52 @@ def get_piechart():
 
     return jsonify(pie_charts)
 
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'files' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+
+    files = request.files.getlist('files')
+    sftp = None
+    ssh = None  # Ensure we close SSH properly
+
+    try:
+        # ✅ Connect to SFTP securely
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(
+            hostname=SFTP_CONFIG["hostname"],
+            port=SFTP_CONFIG["port"],
+            username=SFTP_CONFIG["username"],
+            password=SFTP_CONFIG["password"]
+        )
+        sftp = ssh.open_sftp()
+
+        uploaded_files = []
+        for file in files:
+            filename = secure_filename(file.filename)  # Prevent directory traversal attacks
+            file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+            file.save(file_path)  # Save locally before upload
+
+            remote_path = f"/home/datalogs/{file.filename}"
+            sftp.put(file_path, remote_path)  # Upload to SFTP
+
+            uploaded_files.append(filename)
+
+        return jsonify({'message': 'Files uploaded successfully', 'files': uploaded_files}), 200
+
+    except paramiko.AuthenticationException:
+        return jsonify({'error': '❌ SFTP Authentication failed'}), 401
+    except paramiko.SSHException as e:
+        return jsonify({'error': f'❌ SSH Error: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'❌ Unexpected error: {str(e)}'}), 500
+    finally:
+        # ✅ Clean up connections
+        if sftp:
+            sftp.close()
+        if ssh:
+            ssh.close()
 
 
 if __name__ == "__main__":

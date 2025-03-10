@@ -283,7 +283,7 @@ def parse_log_file(log_file_path: str) ->  pd.DataFrame:
         else:
             extracted_data["Repair Data Applied"] = ", ".join(repair_data_list)
 
-    if extracted_data["Adjacent Columns Failures"] != "N/A":
+    if extracted_data.get("Adjacent Columns Failures", "N/A") != "N/A":
         extracted_data["Adjacent"] = "YES"
     else:
         extracted_data["Adjacent"] = "NO"
