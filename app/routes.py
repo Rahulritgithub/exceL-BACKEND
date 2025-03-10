@@ -1,8 +1,11 @@
-from flask import request, jsonify
+from flask import Flask, request, jsonify
 import pandas as pd
 import tempfile
+import paramiko
 import os
 from app.parser_script import parse_log_file, parse_log_file2, parse_log_file3
+
+
 from app.app import (
     clear_sheet, update_google_sheet, update_google_sheet1, get_existing_data,
     ensure_sheet_exists, update_chart_sheet,
@@ -10,6 +13,9 @@ from app.app import (
     create_yield_summary3, count_bank_nonbank_failures_ECO, count_bank_nonbank_failures_SPORT, generate_combined_pie_chart, 
     count_all_failures
 )
+
+
+
 
 def process_logs_logic(files):
     if not files:
@@ -142,3 +148,5 @@ def get_piechart_logic(files):
     }
 
     return pie_charts
+
+
