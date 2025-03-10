@@ -8,6 +8,6 @@ oauth2client
 gspread-dataframe
 google-api-python-client
 python-dotenv
-
+paramiko
 
 
