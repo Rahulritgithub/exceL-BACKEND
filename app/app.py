@@ -8,7 +8,6 @@ from flask_cors import CORS
 import pandas as pd
 import re
 import io
-import paramiko
 from io import BytesIO
 from app.parser_script import parse_log_file, parse_log_file2, parse_log_file3  # ✅ Absolute import
 

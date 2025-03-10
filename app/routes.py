@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 import pandas as pd
 import tempfile
-import paramiko
 import os
 from app.parser_script import parse_log_file, parse_log_file2, parse_log_file3
 
