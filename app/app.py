@@ -46,9 +46,10 @@ drive_service = build("drive", "v3", credentials=credentials)
 
 
 app = Flask(__name__)
+CORS(app)
 logging.basicConfig(level=logging.DEBUG)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-CORS(app)
+
 
 
 UPLOAD_FOLDER = "uploads"  # Ensure this folder exists
